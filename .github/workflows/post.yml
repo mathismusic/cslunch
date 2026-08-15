@@ -18,5 +18,7 @@ jobs:
       - name: Open today's lunch issue
         run: python3 scripts/bot.py post
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          # With a LUNCH_TOKEN secret (a PAT), the Slack card shows that
+          # account as the issue author instead of github-actions[bot].
+          GITHUB_TOKEN: ${{ secrets.LUNCH_TOKEN || github.token }}
           FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}

@@ -16,4 +16,4 @@ jobs:
       - name: Unlabel and close past lunch issues
         run: python3 scripts/bot.py cleanup
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.LUNCH_TOKEN || github.token }}
