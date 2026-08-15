@@ -78,6 +78,15 @@ DRY_RUN=1 LUNCH_DATE=2026-08-21 python3 scripts/bot.py post
   closed" cards in the channel, that trick stopped working — just disable
   this workflow and close issues by hand occasionally.
 
+## Changing today's plan
+
+If the thread decides on a different spot, no tooling is required — a
+comment wins. To also update the card: Actions → *Post lunch call* → *Run
+workflow* → type a restaurant into the override box (matches the rotation
+by substring, or takes any free-text place). It silently closes today's
+issue and posts a replacement card. Requires repo write access, so add
+frequent lunchers as collaborators.
+
 ## Customizing
 
 - **Restaurants** — edit [`restaurants.json`](restaurants.json). PRs welcome!

@@ -152,9 +152,36 @@ def noon_weather():
 
 def pick_restaurant(today, bad_weather):
     menu = json.loads((ROOT / "restaurants.json").read_text())
+    override = os.environ.get("LUNCH_RESTAURANT", "").strip()
+    if override:
+        matches = [r for r in menu if override.lower() in r["name"].lower()]
+        return matches[0] if matches else {
+            "name": override,
+            "emoji": "🍴",
+            "maps": f"{override} Champaign IL",
+        }
     if bad_weather:
         menu = [r for r in menu if r.get("close")] or menu
     return menu[today.toordinal() % len(menu)]
+
+
+def close_lunch_issues(slug, before=None):
+    """Silently close open lunch issues (unlabel first so the close event
+    falls outside the channel's +label:"lunch" filter). With `before`, only
+    issues created strictly before that ISO date."""
+    issues = github(
+        "GET", f"/repos/{slug}/issues?labels={LABEL}&state=open&per_page=100"
+    )
+    closed = 0
+    for issue in issues:
+        if before and issue["created_at"][:10] >= before:
+            continue
+        num = issue["number"]
+        quoted = urllib.parse.quote(LABEL)
+        github("DELETE", f"/repos/{slug}/issues/{num}/labels/{quoted}")
+        github("PATCH", f"/repos/{slug}/issues/{num}", {"state": "closed"})
+        closed += 1
+    return closed
 
 
 def ensure_label(slug, name, color, description):
@@ -195,6 +222,9 @@ def post(now):
     r = pick_restaurant(now.date(), bad)
     slug = repo()
     title, body = compose(r, weather, bad)
+    if os.environ.get("LUNCH_RESTAURANT", "").strip():
+        replaced = close_lunch_issues(slug)
+        print(f"Replacement post: silently closed {replaced} open lunch issue(s).")
     ensure_label(slug, LABEL, "d97706", "Daily lunch call")
     issue = github(
         "POST",
@@ -210,20 +240,7 @@ def cleanup(now):
     Removing the "lunch" label first means the subsequent close event no
     longer matches the channel's +label:"lunch" subscription filter.
     """
-    slug = repo()
-    issues = github(
-        "GET", f"/repos/{slug}/issues?labels={LABEL}&state=open&per_page=100"
-    )
-    today = now.date().isoformat()
-    closed = 0
-    for issue in issues:
-        if issue["created_at"][:10] >= today:
-            continue  # leave today's lunch call up
-        num = issue["number"]
-        quoted = urllib.parse.quote(LABEL)
-        github("DELETE", f"/repos/{slug}/issues/{num}/labels/{quoted}")
-        github("PATCH", f"/repos/{slug}/issues/{num}", {"state": "closed"})
-        closed += 1
+    closed = close_lunch_issues(repo(), before=now.date().isoformat())
     print(f"Closed {closed} old lunch issue(s).")
 
 

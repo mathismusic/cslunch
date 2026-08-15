@@ -6,6 +6,10 @@ on:
     # both candidate hours; bot.py exits instantly on the one that isn't 11am.
     - cron: "0 16,17 * * 1-5"
   workflow_dispatch:
+    inputs:
+      restaurant:
+        description: "Override restaurant (replaces today's issue)"
+        required: false
 
 permissions:
   issues: write
@@ -22,3 +26,4 @@ jobs:
           # account as the issue author instead of github-actions[bot].
           GITHUB_TOKEN: ${{ secrets.LUNCH_TOKEN || github.token }}
           FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+          LUNCH_RESTAURANT: ${{ inputs.restaurant }}
