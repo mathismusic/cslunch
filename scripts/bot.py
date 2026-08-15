@@ -240,8 +240,10 @@ def cleanup(now):
     Removing the "lunch" label first means the subsequent close event no
     longer matches the channel's +label:"lunch" subscription filter.
     """
-    closed = close_lunch_issues(repo(), before=now.date().isoformat())
-    print(f"Closed {closed} old lunch issue(s).")
+    close_all = os.environ.get("LUNCH_CLOSE_ALL", "").lower() in ("1", "true")
+    before = None if close_all else now.date().isoformat()
+    closed = close_lunch_issues(repo(), before=before)
+    print(f"Closed {closed} lunch issue(s).")
 
 
 def main():

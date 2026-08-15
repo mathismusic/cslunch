@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 9 * * 6" # Saturday ~3-4am Chicago; unlabels before closing so Slack stays quiet
   workflow_dispatch:
+    inputs:
+      all:
+        description: "Also close today's issue"
+        type: boolean
+        default: false
 
 permissions:
   issues: write
@@ -17,3 +22,4 @@ jobs:
         run: python3 scripts/bot.py cleanup
         env:
           GITHUB_TOKEN: ${{ secrets.LUNCH_TOKEN || github.token }}
+          LUNCH_CLOSE_ALL: ${{ inputs.all }}
