@@ -32,6 +32,34 @@ Changing the restaurant list is a pull request anyone can send.
 3. **Test it**: Actions tab → *Post lunch call* → *Run workflow*. A card
    should appear in the channel within seconds.
 
+## Making the Slack card pretty (optional, recommended)
+
+The card's chrome (byline, issue number, footer) belongs to the GitHub app,
+but the byline author is whoever's token opens the issue. To upgrade it from
+`github-actions[bot]`:
+
+1. Create a free GitHub **machine account** (e.g. `uiuc-lunch-train`) and
+   upload [`assets/avatar.png`](assets/avatar.png) — a pixel-art lunch train
+   in Illini colors, regenerable via `scripts/make_avatar.py` — as its
+   profile picture.
+2. Add it as a collaborator on this repo with **Write** access (it creates
+   labels and closes issues, not just opens them).
+3. As that account, create a fine-grained PAT (repo: this one; permissions:
+   *Issues: Read and write*) and save it as an Actions secret named
+   `LUNCH_TOKEN`. The workflows use it automatically and fall back to
+   `github.token` when absent. Fine-grained PATs expire within a year; an
+   expired (but still present) secret fails the workflow rather than falling
+   back, so renew or delete it when the time comes.
+
+Each day's issue also carries a colored cuisine label (🍣 sushi, 🥙
+mediterranean, …) that shows as a chip on the card, a date-rotated conductor
+line, a weather emoji from live WMO condition codes, and a per-restaurant
+tagline. Preview any date locally:
+
+```sh
+DRY_RUN=1 LUNCH_DATE=2026-08-21 python3 scripts/bot.py post
+```
+
 ## How the pieces work
 
 - [`scripts/bot.py`](scripts/bot.py) — stdlib-only Python. `post` picks the

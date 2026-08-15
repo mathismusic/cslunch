@@ -3,8 +3,7 @@
 
 Opens a GitHub issue at 11am CT; the workspace's already-installed GitHub
 Slack app (subscribed via `/github subscribe <owner>/<repo> issues
-+label:"lunch"`) mirrors it into the lunch channel as a card. No Slack app,
-no bot tokens, no secrets of any kind.
++label:"lunch"`) mirrors it into the lunch channel as a card.
 
 Usage:
   python scripts/bot.py post     # 11:00am CT: open today's lunch issue
@@ -14,10 +13,11 @@ Usage:
                                  # the "lunch" label)
 
 Environment:
-  GITHUB_TOKEN       set automatically in Actions (github.token)
+  GITHUB_TOKEN       set automatically in Actions (github.token or LUNCH_TOKEN)
   GITHUB_REPOSITORY  owner/repo, set automatically in Actions
   DRY_RUN=1          print API writes instead of performing them
   FORCE=1            skip the 11am/weekday/skip-date guards (manual runs)
+  LUNCH_DATE=YYYY-MM-DD  pretend it's another day (previewing the rotation)
 
 No third-party dependencies — Python 3.9+ stdlib only.
 """
@@ -27,7 +27,7 @@ import os
 import sys
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -36,6 +36,26 @@ CONFIG = json.loads((ROOT / "config.json").read_text())
 TZ = ZoneInfo(CONFIG["timezone"])
 API = "https://api.github.com"
 LABEL = "lunch"
+
+# The conductor's daily announcements, rotated deterministically by date.
+HYPE = [
+    "All aboard!",
+    "Now boarding on Platform Siebel.",
+    "Choo choo, scholars.",
+    "The lunch train waits for no deadline.",
+    "Tickets please — payment accepted in gossip and research updates.",
+    "Departing on time, unlike your paper reviews.",
+    "Express service. No stops at the vending machines.",
+]
+FRIDAY_HYPE = "Last departure of the week — don't miss it."
+
+# WMO weather codes → emoji (Open-Meteo returns these).
+WMO_EMOJI = [
+    ((0,), "☀️"), ((1,), "🌤️"), ((2,), "⛅"), ((3,), "☁️"),
+    ((45, 48), "🌫️"), (range(51, 58), "🌦️"), (range(61, 68), "🌧️"),
+    (range(71, 78), "❄️"), (range(80, 83), "🌧️"), ((85, 86), "🌨️"),
+    ((95, 96, 99), "⛈️"),
+]
 
 
 def repo():
@@ -115,11 +135,11 @@ def guard(now):
 
 
 def noon_weather():
-    """Feels-like temp and rain chance at noon from Open-Meteo (no API key)."""
+    """Noon conditions from Open-Meteo (free, no API key)."""
     query = urllib.parse.urlencode({
         "latitude": CONFIG["latitude"],
         "longitude": CONFIG["longitude"],
-        "hourly": "precipitation_probability,apparent_temperature",
+        "hourly": "precipitation_probability,apparent_temperature,weather_code",
         "temperature_unit": "fahrenheit",
         "timezone": CONFIG["timezone"],
         "forecast_days": 1,
@@ -130,9 +150,12 @@ def noon_weather():
             data = json.load(resp)
         hourly = data["hourly"]
         idx = next(i for i, t in enumerate(hourly["time"]) if t.endswith("T12:00"))
+        code = hourly["weather_code"][idx]
+        emoji = next((e for codes, e in WMO_EMOJI if code in codes), "🌡️")
         return {
             "precip": hourly["precipitation_probability"][idx],
             "feels": hourly["apparent_temperature"][idx],
+            "emoji": emoji,
         }
     except Exception as exc:  # weather is a nicety; never block the lunch call
         print(f"Weather lookup failed ({exc}); posting without it.")
@@ -146,13 +169,49 @@ def pick_restaurant(today, bad_weather):
     return menu[today.toordinal() % len(menu)]
 
 
-def ensure_label(slug):
+def ensure_label(slug, name, color, description):
     github(
         "POST",
         f"/repos/{slug}/labels",
-        {"name": LABEL, "color": "d97706", "description": "Daily lunch call"},
+        {"name": name, "color": color, "description": description},
         ok_statuses=(422,),  # already exists
     )
+
+
+def compose(now, r, weather, bad, slug):
+    """Title and body, crafted for two audiences: the first three lines are
+    what survives in the Slack card preview; the rest is the full-issue view."""
+    today = now.date()
+    hype = FRIDAY_HYPE if today.weekday() == 4 else HYPE[today.toordinal() % len(HYPE)]
+    title = (
+        f"🚂 {r['emoji']} Lunch Train → {r['name']} · "
+        f"{CONFIG['meet_time']} · {CONFIG['meet_spot']}"
+    )
+    lines = [
+        f"**{hype}** React 🙋 to grab a seat — departs **{CONFIG['meet_time']}** "
+        f"from the {CONFIG['meet_spot']}.",
+    ]
+    if weather:
+        wx = (
+            f"{weather['emoji']} Noon: feels like {round(weather['feels'])}°F · "
+            f"☔ {round(weather['precip'])}%"
+        )
+        if bad:
+            wx += " — rough out there, so today's stop is close by."
+        lines.append(wx)
+    lines.append(f"> _{r['tagline']}_")
+    maps_url = "https://www.google.com/maps/search/?api=1&query=" + urllib.parse.quote(
+        r["maps"]
+    )
+    lines.append(
+        "\n---\n\n"
+        f"📍 [Map]({maps_url}) · "
+        f"🗓️ [Rotation](https://github.com/{slug}/blob/main/restaurants.json) · "
+        f"⚙️ [How this works](https://github.com/{slug}/blob/main/README.md)\n\n"
+        "🎟️ _Lunch Train — departs weekdays 11:00, arrives hungry "
+        f"{CONFIG['meet_time']}. Add stops via PR._"
+    )
+    return title, "\n\n".join(lines)
 
 
 def post(now):
@@ -162,22 +221,15 @@ def post(now):
         or weather["feels"] <= CONFIG["bad_weather"]["min_feels_like_f"]
     )
     r = pick_restaurant(now.date(), bad)
-    title = f"{r['emoji']} Lunch today: {r['name']} — {CONFIG['meet_time']} at {CONFIG['meet_spot']}"
-    body_lines = ["React 🙋 on this message in Slack if you're in!"]
-    if weather:
-        note = (
-            f"Noon weather: feels like {round(weather['feels'])}°F, "
-            f"{round(weather['precip'])}% chance of rain."
-        )
-        if bad:
-            note += " (Picked somewhere close by.)"
-        body_lines.append(note)
     slug = repo()
-    ensure_label(slug)
+    title, body = compose(now, r, weather, bad, slug)
+    cuisine = r["cuisine"]
+    ensure_label(slug, LABEL, "d97706", "Daily lunch call")
+    ensure_label(slug, cuisine["label"], cuisine["color"], "Cuisine")
     issue = github(
         "POST",
         f"/repos/{slug}/issues",
-        {"title": title, "body": "\n\n".join(body_lines), "labels": [LABEL]},
+        {"title": title, "body": body, "labels": [LABEL, cuisine["label"]]},
     )
     print(f"Opened lunch issue: {issue.get('html_url', title)}")
 
@@ -186,7 +238,8 @@ def cleanup(now):
     """Close lunch issues from previous days without pinging Slack.
 
     Removing the "lunch" label first means the subsequent close event no
-    longer matches the channel's +label:"lunch" subscription filter.
+    longer matches the channel's +label:"lunch" subscription filter. The
+    cuisine label stays behind as a colorful archive on GitHub.
     """
     slug = repo()
     issues = github(
@@ -198,7 +251,8 @@ def cleanup(now):
         if issue["created_at"][:10] >= today:
             continue  # leave today's lunch call up
         num = issue["number"]
-        github("DELETE", f"/repos/{slug}/issues/{num}/labels/{LABEL}")
+        quoted = urllib.parse.quote(LABEL)
+        github("DELETE", f"/repos/{slug}/issues/{num}/labels/{quoted}")
         github("PATCH", f"/repos/{slug}/issues/{num}", {"state": "closed"})
         closed += 1
     print(f"Closed {closed} old lunch issue(s).")
@@ -207,7 +261,11 @@ def cleanup(now):
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in ("post", "cleanup"):
         sys.exit(__doc__)
-    now = datetime.now(TZ)
+    fake = os.environ.get("LUNCH_DATE")
+    if fake:
+        now = datetime.combine(date.fromisoformat(fake), time(11, 0), tzinfo=TZ)
+    else:
+        now = datetime.now(TZ)
     if sys.argv[1] == "post":
         guard(now)
         post(now)

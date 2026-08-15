@@ -1,12 +1,82 @@
 [
-  { "name": "Sakanaya", "emoji": "🍣", "close": false },
-  { "name": "Maize Mexican Grill", "emoji": "🌮", "close": false },
-  { "name": "Signature Grill", "emoji": "🍛", "close": true },
-  { "name": "Lai Lai Wok", "emoji": "🥡", "close": false },
-  { "name": "Shawarma Joint", "emoji": "🥙", "close": false },
-  { "name": "Illini Union food court", "emoji": "🍽️", "close": true },
-  { "name": "Mia Za's", "emoji": "🍕", "close": false },
-  { "name": "Spoon House Korean Kitchen", "emoji": "🍲", "close": false },
-  { "name": "Bangkok Thai & Pho 911", "emoji": "🍜", "close": false },
-  { "name": "Cravings", "emoji": "🥟", "close": false }
+  {
+    "name": "Sakanaya",
+    "emoji": "🍣",
+    "close": false,
+    "cuisine": { "label": "🍣 sushi", "color": "e63946" },
+    "tagline": "Omakase: O(1) decision complexity, chef handles the rest.",
+    "maps": "Sakanaya Champaign IL"
+  },
+  {
+    "name": "Maize Mexican Grill",
+    "emoji": "🌮",
+    "close": false,
+    "cuisine": { "label": "🌮 mexican", "color": "f4a261" },
+    "tagline": "Tacos al pastor with strictly increasing deliciousness.",
+    "maps": "Maize Mexican Grill Champaign IL"
+  },
+  {
+    "name": "Signature Grill",
+    "emoji": "🍛",
+    "close": true,
+    "cuisine": { "label": "🍛 indian", "color": "e9c46a" },
+    "tagline": "Curry good enough to test the no-free-lunch theorem.",
+    "maps": "Signature Grill Urbana IL"
+  },
+  {
+    "name": "Lai Lai Wok",
+    "emoji": "🥡",
+    "close": false,
+    "cuisine": { "label": "🥡 chinese", "color": "d62828" },
+    "tagline": "Wok this way — greedy algorithms welcome.",
+    "maps": "Lai Lai Wok Champaign IL"
+  },
+  {
+    "name": "Shawarma Joint",
+    "emoji": "🥙",
+    "close": false,
+    "cuisine": { "label": "🥙 mediterranean", "color": "2a9d8f" },
+    "tagline": "Perfectly rotated since forever. Ask about spit-based scheduling.",
+    "maps": "Shawarma Joint Champaign IL"
+  },
+  {
+    "name": "Illini Union food court",
+    "emoji": "🍽️",
+    "close": true,
+    "cuisine": { "label": "🍽️ variety", "color": "8d99ae" },
+    "tagline": "A nondeterministic restaurant: every visit samples a new branch.",
+    "maps": "Illini Union Urbana IL"
+  },
+  {
+    "name": "Mia Za's",
+    "emoji": "🍕",
+    "close": false,
+    "cuisine": { "label": "🍕 italian", "color": "e76f51" },
+    "tagline": "Distributed toppings, strong consistency.",
+    "maps": "Mia Za's Champaign IL"
+  },
+  {
+    "name": "Spoon House Korean Kitchen",
+    "emoji": "🍲",
+    "close": false,
+    "cuisine": { "label": "🍲 korean", "color": "9d4edd" },
+    "tagline": "Kimchi jjigae: fermentation is just slow cooking with commitment.",
+    "maps": "Spoon House Korean Kitchen Champaign IL"
+  },
+  {
+    "name": "Bangkok Thai & Pho 911",
+    "emoji": "🍜",
+    "close": false,
+    "cuisine": { "label": "🍜 thai", "color": "06d6a0" },
+    "tagline": "Pho 911 — for when your appetite throws an exception.",
+    "maps": "Bangkok Thai Pho 911 Champaign IL"
+  },
+  {
+    "name": "Cravings",
+    "emoji": "🥟",
+    "close": false,
+    "cuisine": { "label": "🥟 chinese", "color": "ffb703" },
+    "tagline": "Dumplings: well-encapsulated state you can eat.",
+    "maps": "Cravings Champaign IL"
+  }
 ]
