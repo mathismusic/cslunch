@@ -7,13 +7,16 @@ on:
     - cron: "0 16,17 * * 1-5"
   workflow_dispatch:
 
+permissions:
+  issues: write
+
 jobs:
   post:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Post lunch call
+      - name: Open today's lunch issue
         run: python3 scripts/bot.py post
         env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}

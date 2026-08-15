@@ -1,14 +1,23 @@
 #!/usr/bin/env python3
-"""Lunch Train bot: posts a daily lunch call and tallies RSVPs.
+"""Lunch Train: daily lunch call, relayed to Slack by the GitHub app.
+
+Opens a GitHub issue at 11am CT; the workspace's already-installed GitHub
+Slack app (subscribed via `/github subscribe <owner>/<repo> issues
++label:"lunch"`) mirrors it into the lunch channel as a card. No Slack app,
+no bot tokens, no secrets of any kind.
 
 Usage:
-  python scripts/bot.py post   # 11:00am CT: announce today's restaurant
-  python scripts/bot.py tally  # 11:45am CT: count reactions, announce headcount
+  python scripts/bot.py post     # 11:00am CT: open today's lunch issue
+  python scripts/bot.py cleanup  # weekly: unlabel then close old lunch issues
+                                 # (unlabeling first keeps the closes out of
+                                 # Slack, since the subscription filters on
+                                 # the "lunch" label)
 
 Environment:
-  SLACK_BOT_TOKEN  Slack bot token (xoxb-...). Required unless DRY_RUN post.
-  DRY_RUN=1        Print messages instead of posting them.
-  FORCE=1          Skip the 11am/weekday/skip-date guards (manual runs).
+  GITHUB_TOKEN       set automatically in Actions (github.token)
+  GITHUB_REPOSITORY  owner/repo, set automatically in Actions
+  DRY_RUN=1          print API writes instead of performing them
+  FORCE=1            skip the 11am/weekday/skip-date guards (manual runs)
 
 No third-party dependencies — Python 3.9+ stdlib only.
 """
@@ -18,33 +27,52 @@ import os
 import sys
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = json.loads((ROOT / "config.json").read_text())
 TZ = ZoneInfo(CONFIG["timezone"])
+API = "https://api.github.com"
+LABEL = "lunch"
 
 
-def slack(method, **params):
-    """Call a Slack Web API method (form-encoded, which every method accepts)."""
-    if os.environ.get("DRY_RUN") == "1" and method == "chat.postMessage":
-        print(f"[dry-run] {method}:\n{params.get('text', '')}\n")
-        return {"ok": True, "ts": "0"}
-    token = os.environ.get("SLACK_BOT_TOKEN")
-    if not token:
-        sys.exit("SLACK_BOT_TOKEN is not set.")
+def repo():
+    slug = os.environ.get("GITHUB_REPOSITORY")
+    if not slug:
+        if os.environ.get("DRY_RUN") == "1":
+            return "OWNER/cslunch"
+        sys.exit("GITHUB_REPOSITORY is not set.")
+    return slug
+
+
+def github(method, path, payload=None, ok_statuses=()):
+    """Call the GitHub REST API. Writes are printed instead under DRY_RUN."""
+    if os.environ.get("DRY_RUN") == "1" and method != "GET":
+        body = json.dumps(payload, indent=2, ensure_ascii=False) if payload else ""
+        print(f"[dry-run] {method} {path}\n{body}\n")
+        return {}
+    headers = {"Accept": "application/vnd.github+json"}
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    elif method != "GET":
+        sys.exit("GITHUB_TOKEN is not set.")
     req = urllib.request.Request(
-        f"https://slack.com/api/{method}",
-        data=urllib.parse.urlencode(params).encode(),
-        headers={"Authorization": f"Bearer {token}"},
+        f"{API}{path}",
+        method=method,
+        data=json.dumps(payload).encode() if payload is not None else None,
+        headers=headers,
     )
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        data = json.load(resp)
-    if not data.get("ok"):
-        sys.exit(f"Slack API error from {method}: {data.get('error')}")
-    return data
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = resp.read()
+            return json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as err:
+        if err.code in ok_statuses:
+            return {}
+        sys.exit(f"GitHub API {method} {path} failed: {err.code} {err.read().decode()}")
 
 
 def skip_dates():
@@ -118,6 +146,15 @@ def pick_restaurant(today, bad_weather):
     return menu[today.toordinal() % len(menu)]
 
 
+def ensure_label(slug):
+    github(
+        "POST",
+        f"/repos/{slug}/labels",
+        {"name": LABEL, "color": "d97706", "description": "Daily lunch call"},
+        ok_statuses=(422,),  # already exists
+    )
+
+
 def post(now):
     weather = noon_weather()
     bad = weather is not None and (
@@ -125,92 +162,57 @@ def post(now):
         or weather["feels"] <= CONFIG["bad_weather"]["min_feels_like_f"]
     )
     r = pick_restaurant(now.date(), bad)
-    lines = [
-        f"{r['emoji']} *Lunch today: {r['name']}* — meet {CONFIG['meet_time']} at {CONFIG['meet_spot']}.",
-        f"React :raised_hand: if you're in! Headcount goes out at {CONFIG['tally_time']}.",
-    ]
+    title = f"{r['emoji']} Lunch today: {r['name']} — {CONFIG['meet_time']} at {CONFIG['meet_spot']}"
+    body_lines = ["React 🙋 on this message in Slack if you're in!"]
     if weather:
         note = (
-            f"_Noon weather: feels like {round(weather['feels'])}°F, "
-            f"{round(weather['precip'])}% chance of rain._"
+            f"Noon weather: feels like {round(weather['feels'])}°F, "
+            f"{round(weather['precip'])}% chance of rain."
         )
         if bad:
-            note += " _(picked somewhere close by)_"
-        lines.append(note)
-    slack(
-        "chat.postMessage",
-        channel=CONFIG["channel_id"],
-        text="\n".join(lines),
-        unfurl_links="false",
+            note += " (Picked somewhere close by.)"
+        body_lines.append(note)
+    slug = repo()
+    ensure_label(slug)
+    issue = github(
+        "POST",
+        f"/repos/{slug}/issues",
+        {"title": title, "body": "\n\n".join(body_lines), "labels": [LABEL]},
     )
-    print(f"Posted lunch call for {r['name']}.")
+    print(f"Opened lunch issue: {issue.get('html_url', title)}")
 
 
-def tally(now):
-    channel = CONFIG["channel_id"]
-    bot_id = slack("auth.test")["user_id"]
-    midnight = datetime.combine(now.date(), time.min, tzinfo=TZ).timestamp()
-    history = slack(
-        "conversations.history", channel=channel, oldest=f"{midnight:.6f}", limit="100"
-    )
-    lunch_post = next(
-        (
-            m for m in history["messages"]
-            if m.get("user") == bot_id and "Lunch today" in m.get("text", "")
-        ),
-        None,
-    )
-    if lunch_post is None:
-        sys.exit("No lunch post found today; nothing to tally.")
+def cleanup(now):
+    """Close lunch issues from previous days without pinging Slack.
 
-    full = slack(
-        "reactions.get", channel=channel, timestamp=lunch_post["ts"], full="true"
+    Removing the "lunch" label first means the subsequent close event no
+    longer matches the channel's +label:"lunch" subscription filter.
+    """
+    slug = repo()
+    issues = github(
+        "GET", f"/repos/{slug}/issues?labels={LABEL}&state=open&per_page=100"
     )
-    goers = sorted({
-        user
-        for reaction in full["message"].get("reactions", [])
-        for user in reaction.get("users", [])
-        if user != bot_id
-    })
-
-    if not goers:
-        print("No reactions today; staying quiet.")
-        return
-
-    mentions = ", ".join(f"<@{u}>" for u in goers)
-    if len(goers) >= CONFIG["quorum"]:
-        text = (
-            f":steam_locomotive: *It's on!* {len(goers)} going: {mentions}\n"
-            f"See you at {CONFIG['meet_time']} — {CONFIG['meet_spot']}."
-        )
-        broadcast = "true"  # show the good news in the channel, not just the thread
-    else:
-        text = (
-            f"{len(goers)} in so far ({mentions}) — small crew today, "
-            "coordinate here if plans shift!"
-        )
-        broadcast = "false"
-    slack(
-        "chat.postMessage",
-        channel=channel,
-        thread_ts=lunch_post["ts"],
-        reply_broadcast=broadcast,
-        text=text,
-    )
-    print(f"Tally posted: {len(goers)} going.")
+    today = now.date().isoformat()
+    closed = 0
+    for issue in issues:
+        if issue["created_at"][:10] >= today:
+            continue  # leave today's lunch call up
+        num = issue["number"]
+        github("DELETE", f"/repos/{slug}/issues/{num}/labels/{LABEL}")
+        github("PATCH", f"/repos/{slug}/issues/{num}", {"state": "closed"})
+        closed += 1
+    print(f"Closed {closed} old lunch issue(s).")
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("post", "tally"):
+    if len(sys.argv) != 2 or sys.argv[1] not in ("post", "cleanup"):
         sys.exit(__doc__)
-    if CONFIG["channel_id"].startswith("C0XXX") and os.environ.get("DRY_RUN") != "1":
-        sys.exit("Edit config.json: channel_id is still the placeholder.")
     now = datetime.now(TZ)
-    guard(now)
     if sys.argv[1] == "post":
+        guard(now)
         post(now)
     else:
-        tally(now)
+        cleanup(now)
 
 
 if __name__ == "__main__":

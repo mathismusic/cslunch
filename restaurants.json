@@ -1,12 +1,12 @@
 [
-  { "name": "Sakanaya", "emoji": ":sushi:", "close": false },
-  { "name": "Maize Mexican Grill", "emoji": ":taco:", "close": false },
-  { "name": "Signature Grill", "emoji": ":curry:", "close": true },
-  { "name": "Lai Lai Wok", "emoji": ":takeout_box:", "close": false },
-  { "name": "Shawarma Joint", "emoji": ":stuffed_flatbread:", "close": false },
-  { "name": "Illini Union food court", "emoji": ":fork_and_knife:", "close": true },
-  { "name": "Mia Za's", "emoji": ":pizza:", "close": false },
-  { "name": "Spoon House Korean Kitchen", "emoji": ":stew:", "close": false },
-  { "name": "Bangkok Thai & Pho 911", "emoji": ":ramen:", "close": false },
-  { "name": "Cravings", "emoji": ":dumpling:", "close": false }
+  { "name": "Sakanaya", "emoji": "🍣", "close": false },
+  { "name": "Maize Mexican Grill", "emoji": "🌮", "close": false },
+  { "name": "Signature Grill", "emoji": "🍛", "close": true },
+  { "name": "Lai Lai Wok", "emoji": "🥡", "close": false },
+  { "name": "Shawarma Joint", "emoji": "🥙", "close": false },
+  { "name": "Illini Union food court", "emoji": "🍽️", "close": true },
+  { "name": "Mia Za's", "emoji": "🍕", "close": false },
+  { "name": "Spoon House Korean Kitchen", "emoji": "🍲", "close": false },
+  { "name": "Bangkok Thai & Pho 911", "emoji": "🍜", "close": false },
+  { "name": "Cravings", "emoji": "🥟", "close": false }
 ]

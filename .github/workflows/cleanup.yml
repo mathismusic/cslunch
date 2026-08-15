@@ -1,0 +1,19 @@
+name: Close old lunch issues
+
+on:
+  schedule:
+    - cron: "0 9 * * 6" # Saturday ~3-4am Chicago; unlabels before closing so Slack stays quiet
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unlabel and close past lunch issues
+        run: python3 scripts/bot.py cleanup
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
