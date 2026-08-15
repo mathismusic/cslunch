@@ -1,0 +1,14 @@
+{
+  "channel_id": "C0XXXXXXXXX",
+  "timezone": "America/Chicago",
+  "meet_time": "12:15",
+  "tally_time": "11:45",
+  "meet_spot": "the Siebel lobby",
+  "quorum": 3,
+  "latitude": 40.1138,
+  "longitude": -88.2249,
+  "bad_weather": {
+    "max_precip_percent": 50,
+    "min_feels_like_f": 15
+  }
+}

@@ -1,0 +1,19 @@
+name: Post lunch call
+
+on:
+  schedule:
+    # 11:00 America/Chicago. GitHub cron is UTC and ignores DST, so we fire at
+    # both candidate hours; bot.py exits instantly on the one that isn't 11am.
+    - cron: "0 16,17 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post lunch call
+        run: python3 scripts/bot.py post
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}

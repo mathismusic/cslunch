@@ -1,0 +1,7 @@
+# Days the bot stays quiet (besides weekends, which are skipped automatically).
+# One date per line, YYYY-MM-DD, or an inclusive range with "..".
+# Adjust to the official UIUC academic calendar each semester.
+
+2026-09-07                  # Labor Day
+2026-11-21..2026-11-29      # Fall break + Thanksgiving
+2026-12-19..2027-01-18      # Winter break (approximate — check calendar)
