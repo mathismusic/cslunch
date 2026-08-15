@@ -87,6 +87,25 @@ by substring, or takes any free-text place). It silently closes today's
 issue and posts a replacement card. Requires repo write access, so add
 frequent lunchers as collaborators.
 
+## Ad-hoc events straight from Slack
+
+For a manual lunch/dinner card without touching GitHub's UI, type in the
+channel:
+
+```
+/github open mathismusic/cslunch
+```
+
+In the dialog: title like `🍢 Lunch: KoFusion — 5:30pm, Siebel lobby`, body
+`React 🙋 if you're in.`, and — critically — the label `lunch` (that's what
+makes the card appear in the channel; no label, no card). Saturday cleanup
+sweeps these like any other lunch issue.
+
+For the full bot-composed card (rotation pick, weather, map), pin the
+workflow page as a channel bookmark — *+ Add a bookmark* →
+`https://github.com/mathismusic/cslunch/actions/workflows/post.yml` — one
+click there lands on the *Run workflow* button.
+
 ## Customizing
 
 - **Restaurants** — edit [`restaurants.json`](restaurants.json). PRs welcome!
