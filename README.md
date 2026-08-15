@@ -51,10 +51,12 @@ but the byline author is whoever's token opens the issue. To upgrade it from
    expired (but still present) secret fails the workflow rather than falling
    back, so renew or delete it when the time comes.
 
-Each day's issue also carries a colored cuisine label (🍣 sushi, 🥙
-mediterranean, …) that shows as a chip on the card, a date-rotated conductor
-line, a weather emoji from live WMO condition codes, and a per-restaurant
-tagline. Preview any date locally:
+The card text itself is deliberately minimal and identical every day — the
+title carries restaurant/time/place, the body is an RSVP line plus weather
+(live WMO condition code → emoji) and a map link. That's the whole surface
+the GitHub app gives us: colored bars, buttons, and boxes are Slack Block
+Kit features, which require posting as an installed Slack app. Preview any
+date locally:
 
 ```sh
 DRY_RUN=1 LUNCH_DATE=2026-08-21 python3 scripts/bot.py post
